@@ -1,0 +1,1 @@
+--turnsrc dwn --dwntau 3.0 --smddrive 0.30 --fc1 6 --fc1dir weath --weathmode kap --weath 1000 --refrmod 0.3 --pirsup 0.0 --pirmag 0.02 --arrc 0.5 --arrg 0.35 --pirrev 0 --proto chem --chemsrc 3.5,1.0 --chemgain 350

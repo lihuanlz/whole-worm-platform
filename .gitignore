@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+runs/
+!runs/.gitkeep
+figures/figs/
+figures/movies/
+_smoke/
