@@ -1,14 +1,14 @@
 # anchored_engine_v55.py
-# 【v5.5 = 实测动力学引擎（P27，2026-10-06 模型卡冻结）：
-#   逐行移植 Nicoletti 2019 PLoS ONE 14(7):e0218738 官方 XPPAUT 源
-#   （ModelDB #267187，refs/AWC.ode、refs/RMD.ode），含全部校准位移参数。
-#   单位: V=mV, I=pA (nS·mV), t=ms, C=pF。dv/dt=(Iext-I_tot)/C。
-#   无我方手设门控参数。确定性。】
+# [v5.5 = measured-dynamics engine (model card frozen 2026-10-06):
+#   line-by-line port of the official XPPAUT sources of Nicoletti 2019 PLoS ONE 14(7):e0218738
+#   (ModelDB #267187, refs/AWC.ode, refs/RMD.ode), including all calibration shift parameters.
+#   Units: V=mV, I=pA (nS·mV), t=ms, C=pF. dv/dt=(Iext-I_tot)/C.
+#   No hand-set gating parameters of ours. Deterministic.]
 import numpy as np
 
 EK, ECA, ENA = -80.0, 60.0, 30.0
 
-# ---------------- 细胞类型组成（.ode 冻结值） ----------------
+# ---------------- Cell-type composition (.ode frozen values) ----------------
 def cell_params(ctype):
     P = dict(
         ELEAK=-80.0,
@@ -33,7 +33,7 @@ def cell_params(ctype):
         P.update(gkvs1=0.0, gkqt3=0.0, gegl2=0.0, gegl36=1.3)
     return P
 
-# 状态向量布局
+# State-vector layout
 GATES_AWC = ["m_shal","hf_shal","hs_shal","m_kvs1","h_kvs1","m_shak","h_shak",
              "mf_kqt3","ms_kqt3","w_kqt3","s_kqt3","m_egl2","m_kir",
              "m_cca1","h_cca1","m_unc2","h_unc2","m_egl19","hs_egl19",
@@ -48,7 +48,7 @@ def gates(ctype):
 _IDX = {ct: {n: i + 1 for i, n in enumerate(gates(ct))} for ct in ("AWC", "RMD")}
 
 def init_state(ctype):
-    """.ode init 行: v=-70, 激活=0, 失活=1, ca=5e-5, m_sk=0.13563"""
+    """.ode init row: v=-70, activation=0, inactivation=1, ca=5e-5, m_sk=0.13563"""
     g = gates(ctype)
     y = np.zeros(1 + len(g))
     y[0] = -70.0
@@ -61,10 +61,10 @@ def init_state(ctype):
         elif name == "m_sk": y[n] = 0.13563
     return y
 
-def _x(x1, x2):  # 安全指数
+def _x(x1, x2):  # safe exponential
     return np.exp(np.clip(x1, -500, 500)) if x2 is None else None
 
-# ---------------- 右端函数 ----------------
+# ---------------- Right-hand side ----------------
 def rhs(t, y, P, ctype, Iext):
     v = y[0]
     S = dict(zip(gates(ctype), y[1:]))
@@ -149,14 +149,14 @@ def rhs(t, y, P, ctype, Iext):
     I_cca1 = P["gcca1"]*m**2*h*(v-ECA)
 
     # ---- UNC-2 (CaV2 P/Q) ----
-    # unc2_vshift: gf 突变模拟旋钮, >0 = 激活曲线左移(更易开); 缺省 0, 加 0.0 逐比特不变
+    # unc2_vshift: gf-mutation simulation knob, >0 = activation curve shifts left (opens more easily); default 0, bit-identical
     sh_u = P.get("unc2_vshift", 0.0)
     minf_u = 1/(1+exp(-(v+12.17+25+sh_u)/3.97))
     tm_u = (1.4969/(exp(-(v+8.1761+30)/9.0753)+exp((v+8.1761+30)/15.3456))+0.1029)*3.0
     hinf_u = 1/(1+exp((v+52.47+25)/5.6))
-    # unc2_hinf_ped (2026-10-23 探针旋钮): UNC-2 非失活分量 A∈[0,1)。
-    # 依据: Gao 2018 unc-2(gf)=减弱失活动力学→A-MN 振荡增强; CaV2 家族普遍存在
-    # 非失活窗流成分。缺省 0 = 与历史版本逐比特不变。
+    # unc2_hinf_ped (probe knob, 2026-10-23): UNC-2 non-inactivating fraction A∈[0,1).
+    # Basis: Gao 2018 unc-2(gf) = weakened inactivation kinetics → stronger A-MN oscillation; CaV2-family channels
+    # commonly carry a non-inactivating window component. Default 0 = bit-identical to history.
     ped_u = P.get("unc2_hinf_ped", 0.0)
     if ped_u:
         hinf_u = ped_u + (1.0-ped_u)*hinf_u
@@ -182,12 +182,12 @@ def rhs(t, y, P, ctype, Iext):
     I_egl19 = P["gegl19"]*m*h*(v-ECA)
     alpha_e = minf_e/tm_e; beta_e = 1.0/tm_e-alpha_e
 
-    # ---- Ca 纳米域 + SLO1/SLO2 复合体 ----
+    # ---- Ca nanodomain + SLO1/SLO2 complex ----
     r_, d_, F_, kb_, b_, gsc_ = 13e-9, 250e-12, 96485.0, 500e6, 30e-6, 40e-12
     cao = ((abs(gsc_*(v-ECA)*1e-3)/(8*np.pi*r_*d_*F_))
            *np.exp(-r_/np.sqrt(d_/(kb_*b_)))*1e6*1e-3)+0.05
     cac = 0.05
-    # SLO1 参数
+    # SLO1 parameters
     wom, wyx, kyx, nyx = 3.152961, 0.012643, 34.338784, 0.000100
     wop, wxy, kxy, nxy = 0.156217, -0.027527, 55.726816, 1.299198
     kcm = wom*exp(-wyx*v)/(1+(cac/kyx)**nyx)
@@ -203,7 +203,7 @@ def rhs(t, y, P, ctype, Iext):
     tm_s1 = (alpha_e+beta_e+kcm)/den2
     d[_IDX[ctype]["mslo1"]] = (minf_s1-S["mslo1"])/tm_s1
     I_slo1 = P["gslo1"]*S["mslo1"]*S["hs_egl19"]*(v-EK)
-    # SLO2 参数
+    # SLO2 parameters
     wom1, wyx1, kyx1, nyx1 = 0.896395, 0.019405, 3294.553404, 0.000010
     wop1, wxy1, kxy1, nxy1 = 0.026719, -0.024123, 93.449423, 1.835067
     kcm1 = wom1*exp(-wyx1*v)/(1+(cac/kyx1)**nyx1)
@@ -220,13 +220,13 @@ def rhs(t, y, P, ctype, Iext):
     d[_IDX[ctype]["mslo2"]] = (minf_s2-S["mslo2"])/tm_s2
     I_slo2 = P["gslo2"]*S["mslo2"]*S["h_unc2"]*(v-EK)
 
-    # ---- 胞内钙（微域）+ KCNL ----
+    # ---- Intracellular calcium (microdomain) + KCNL ----
     I_ca = I_unc2+I_egl19+I_cca1
     alpha_ca = 1/(2*P["vol"]*96.485)
     ca = S["ca"]
-    # ca_tau_scale (2026-10-23 探针旋钮): 胞内钙清除时间常数缩放。50ms 是微域清除;
-    # 体钙清除(泵/缓冲)在秒级——Gao 2018 DA9 钙振荡周期 ~50s 需要慢体钙变量。
-    # 缺省 1.0 = 与历史版本逐比特不变。
+    # ca_tau_scale (probe knob, 2026-10-23): intracellular calcium clearance time-constant scaling. 50 ms is microdomain clearance;
+    # somatic clearance (pumps/buffers) is seconds-level — the Gao 2018 DA9 Ca oscillation period ~50 s needs a slow somatic Ca variable.
+    # Default 1.0 = bit-identical to history.
     ctau = 50.0*P.get("ca_tau_scale", 1.0)
     rs = (-0.001*alpha_ca*I_ca-(ca-5e-5)/ctau) if I_ca < 0 else ((5e-5-ca)/ctau)
     d[_IDX[ctype]["ca"]] = rs

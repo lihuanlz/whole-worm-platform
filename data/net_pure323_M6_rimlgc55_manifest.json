@@ -2,12 +2,12 @@
   "milestone": "M6",
   "date": "2026-10-23",
   "base": "net_pure323_M5d_gaba26.npz",
-  "rule": "RIM->AVB 4条化学边 sign +1->-1; 拓扑/权重不动",
+  "rule": "RIM->AVB 4 chemical edges sign +1->-1; topology/weights unchanged",
   "basis": [
-    "Pirri et al. 2009 Neuron (PMC2804440): RIM酪胺->LGC-55氯通道在AVB, AVB特异性回补恢复倒退时长 -> 功能极性=抑制",
-    "Pirri & Alkema 2011: 酪胺能LGC-55超极化AVB, 偏置双稳电路向倒退态",
-    "Sordillo & Bargmann 2021 eLife 10:e67723: RIM->AVA为兴奋(AMPA), 保持+1不动",
-    "Meng 2024 (PMC11006214) master neuron: AVA无直接解剖输出到AVB, 相位抑制为间接/突触外 -> RIM/LGC-55为候选载体"
+    "Pirri et al. 2009 Neuron (PMC2804440): RIM tyramine -> LGC-55 chloride channel on AVB; AVB-specific rescue restores backward duration -> functional polarity = inhibition",
+    "Pirri & Alkema 2011: tyraminergic LGC-55 hyperpolarises AVB, biasing the bistable circuit toward the backward state",
+    "Sordillo & Bargmann 2021 eLife 10:e67723: RIM->AVA is excitatory (AMPA), kept at +1",
+    "Meng 2024 (PMC11006214) master neuron: AVA has no direct anatomical output to AVB; the phasic inhibition is indirect/extrasynaptic -> RIM/LGC-55 is the candidate carrier"
   ],
   "flips": [
     [
@@ -31,5 +31,5 @@
       0.1377
     ]
   ],
-  "note": "与M2c/M5d同级: 功能电生理证据的极性修正, 非拓扑变更; EM解剖边本身保留(Cook 2019), 仅更正净功能符号。"
+  "note": "Same class as M2c/M5d: a polarity correction from functional electrophysiology evidence, not a topology change; the EM anatomical edges themselves are kept (Cook 2019), only the net functional sign is corrected."
 }

@@ -1,38 +1,38 @@
-id,名称,符号,数值,单位,来源文献,出处位置,提取状态,备注
-C1.1,肌肉静息膜电位,V_rest,-26.9±0.5,mV,Liu et al. 2011 J Physiol 589:101-117 (PMC3039263),Fig/结果节,锚定,体壁肌全细胞记录；静息贴近AP阈值
-C1.2,肌肉AP幅度,AP_amp,45.1±0.7,mV,Liu et al. 2011 (PMC3039263),结果节,锚定,全或无；超射约+20 mV；升慢降快
-C1.3,肌肉AP半宽,AP_halfwidth,~20,ms,Liu et al. 2011 (PMC3039263),波形测量,锚定,tau_m主锚之一：该文未报输入阻抗/膜时间常数
-C1.4,自发成串放电(肌源性),,-,定性,Liu et al. 2011 (PMC3039263),结果节,锚定,慢波前导<10 mV；阻断NMJ后仍存在
-C1.5,超极化停发阈值,V_stop,~-40,mV,Liu et al. 2011 (PMC3039263),结果节,锚定,频率对膜电位极敏感=调频机制的直接证据
-C1.6,通道分工,,EGL-19必需;CCA-1参与;SHK-1+SLO-2复极;SLO-2定静息,-,Liu et al. 2011 (PMC3039263),敲除/药理学,锚定,钙瞬变需EGL-19+UNC-68(RyR)；一钙峰常对应一串AP
-C1.7,GABA紧张性抑制,,存在,定性,Liu et al. 2011 (PMC3039263),结果节,锚定,阻断NMJ后静息电位下降→存在紧张性GABA输入
-C1.8,膜时间常数设计锚,tau_m,50-100起步,ms,综合设计(Liu 2011 + Gao&Zhen 2011 + P3校准),立项书§3,估计,Liu 2011无输入阻抗数据；以AP半宽20ms+收缩时序+校准探针定死
-C1b.1,单AP驱动收缩,,1个AP足够,-,Gao & Zhen 2011 PNAS 108:2557-2562 (PMC3038695),Fig(0.1ms光刺激),锚定,肌肉兴奋-收缩耦联的时序下界
-C1b.2,AP数-突触后电流关系,,正相关(频率编码),-,Gao & Zhen 2011 (PMC3038695),Fig 6C,锚定,频率编码的定量锚；校准探针直接对标此曲线
-C1b.3,突触逆转电位,E_rev,ACh +20 / GABA -30 / 静息 ~-25,mV,Gao & Zhen 2011 (PMC3038695),结果节,锚定,静息夹在两者之间→兴奋/抑制双重调制；GABA负号设计依据
-C1b.4,GABA阻断效应,,完全可逆阻断AP+舒张,定性,Gao & Zhen 2011 (PMC3038695),结果节,锚定,VD/DD舒张支路的行为级验证锚
-C1b.5,dTBC阻断自发AP比例,,~88,%,Gao & Zhen 2011 (PMC3038695),结果节,锚定,其余~12%为肌源性残留
-C2.1,肌肉波-曲率波相位滞后(低粘度),,沿体近似恒定,定性,Pierce et al. 2025 PRX Life 3:023001,主文Fig,锚定,buffer/1%MC：弹性主导区
-C2.2,相位滞后(高粘度/琼脂),,沿中段累积;头尾局部超前,定性,Pierce et al. 2025 PRX Life 3:023001,主文Fig,锚定,阻力主导区特征；校准探针环境切换判据
-C2.3,波数关系,,buffer k_m>k_curv; 琼脂 k_m<k_curv,定性,Pierce et al. 2025 PRX Life 3:023001,主文,锚定,频率处处锁定；滞后来自波数差而非频率差
-C2.4,GCaMP动力学延迟,,未校正(绝对滞后不可用),-,Pierce et al. 2025 PRX Life 3:023001,方法节,定性锚,只能用相对滞后；写论文时必须声明
-C2.5,肌肉力矩-曲率相位差(爬行),,~60,度,Fang-Yen et al. 2010 PNAS 107:20323 (PMC2996704),主文第10页,定性锚,模型预测值；游泳时力矩与曲率同相
-C2.6,背腹肌收缩相位,,腹侧~270°;背侧~90°,度,eLife 2021 (PMC7986531),钙成像结果节,锚定,VD/DD钙信号在对应肌收缩时下降
-C3.1,爬行曲率幅度(归一化),κL,5-6,-,Stephens et al. 2008 (PMC2276863),本构几何估计,估计,Stephens为归一化单位无绝对值；待C3.6交叉验证
-C3.2,omega/delta转向峰幅,a3,omega≈15; delta≈23,-,Broekmans et al. 2016 eLife 5:e17227,主文,锚定,最低自触值；转向幅度校准上限
-C3.3,逃逸再定向角,Δθ,-0.89π±0.05π(omega段-0.90π±0.04π),rad,Broekmans et al. 2016 eLife 5:e17227,主文,锚定,单次转向>90°硬指标的文献来源
-C3.4,局部曲率生物力学上限,κ_local_max,≈19.5,1/L,Broekmans et al. 2016 eLife 5:e17227,方法/主文,锚定,0.1L内切角差≤1.95 rad；防数值爆弯曲
-C3.5,特征模追踪界,|a1..a5|,≤(18;18;34;12;6),-,Broekmans et al. 2016 eLife 5:e17227,方法节,锚定,eigenworm模幅度上限
-C3.6,游/爬波长-频率-曲率绝对值,λ/f/κL,待补,mm;Hz;1/L,Fang-Yen et al. 2010 PNAS 107:20323 (PMC2996704),Table 1(正式版),待补,DASH手稿版(PDF已存档refs_pdf)无表内数值；需PNAS正式版Table 1；Fig 3a-c有趋势图可数字化
-C5.1,体壁弯曲弹性系数,b,4e-12,N·m³,Fang-Yen et al. 2010 (PMC2996704),Fig 4c/方法节(p15),锚定,弛豫-粘度斜率；全文核对无误
-C5.2,体壁内粘性系数,b_v,<1.5e-14,N·m³·s,Fang-Yen et al. 2010 (PMC2996704),方法节(p15),锚定,上界；内力约为内粘力100倍→建模可忽略
-C5.3,攻角峰值,θ_a,45→55,度,Fang-Yen et al. 2010 (PMC2996704),主文(p8)/Fig 3d,锚定,粘度1→28000 mPa·s全程近似恒定；推力守恒判据
-C5.4,肌肉总功率稳定性,,跨28000×粘度变化<2×,-,Fang-Yen et al. 2010 (PMC2996704),主文(p11)/Fig 5a,锚定,外粘滞耗散变化~1000×；功率恒定=步态适应目的
-C5.5,薄室阻力修正,,~9.7,-,Fang-Yen et al. 2010 (PMC2996704),方法节(p16),锚定,沉降速度bulk 0.66±0.04 vs thin 0.068±0.007 mm/s (N=10)
-C5.6,弛豫标度律,τ∝ηLf^4,线性,-,Fang-Yen et al. 2010 (PMC2996704),方法节(p15),锚定,粘弹性杆最低模弛豫；校准环境刚度用
-A1,头组肌肉(行01-06)支配,,RME4+RMD6+SMD4+SMB4=18,细胞,data/neuron_muscle.csv (BAAIWorm导出),实测审计,锚定,单位=EM接触数；头部特殊肌群
-A2,身体组肌肉(行07-24)支配,,DA9+DB7+DD6(背);VA12+VB11+VD13(腹)=58,细胞,data/neuron_muscle.csv,实测审计,锚定,背腹象限分组=新肌肉层分组骨架
-A3,GABA交叉支配,,DD→背侧肌;VD→腹侧肌,-,data/neuron_muscle.csv,实测审计,锚定,交叉指纹完整；舒张支路接线依据
-C9.1,头组幅度肽能旋钮,FLP-12->FRPR-8,SMB释放;突变体体弯幅度增大,-,CeNeuro2026摘要+KBRI 2024 (FLP-12/SMB->FRPR-8/AVD),摘要+正文,定性锚,头组肌肉支配者SMB的肽能输出;v82头组增益接口候选
-C9.2,肽直作用肌肉通道,FLP->肌肉离子通道,FLP-1-6开Cl通道;FLP-6腹缩背舒;FLP-8/14双相节律,-,Ascaris肌肉研究(Bowman 1996/2002;Maule 1994;Cowden&Stretton 1993),综述转引,定性锚,线虫近缘种证据;C.elegans肌肉直接肽受体未证实
-C9.3,NMJ突触前肽能调制(ACh),nlp-12/flp-1/ins-22/ins-31,四基因突变aldicarb抗性,-,Sieburth et al. 2005,筛选,锚定,NMJ肽能调制普遍存在; pep/g_tot机制的依据之一
+id,name,symbol,value,unit,source,location,status,notes
+C1.1,muscle resting membrane potential,V_rest,-26.9±0.5,mV,Liu et al. 2011 J Physiol 589:101-117 (PMC3039263),Fig/Results,anchored,whole-cell body-wall muscle recording; rest sits close to the AP threshold
+C1.2,muscle AP amplitude,AP_amp,45.1±0.7,mV,Liu et al. 2011 (PMC3039263),Results,anchored,all-or-none; overshoot about +20 mV; slow rise fast fall
+C1.3,muscle AP half-width,AP_halfwidth,~20,ms,Liu et al. 2011 (PMC3039263),waveform measurement,anchored,one of the main tau_m anchors: the paper reports no input resistance/membrane time constant
+C1.4,spontaneous bursting (myogenic),,-,qualitative,Liu et al. 2011 (PMC3039263),Results,anchored,slow-wave lead-in <10 mV; persists after NMJ blockade
+C1.5,hyperpolarisation firing-stop threshold,V_stop,~-40,mV,Liu et al. 2011 (PMC3039263),Results,anchored,frequency extremely sensitive to membrane potential = direct evidence of a frequency-modulation mechanism
+C1.6,channel division of labour,,EGL-19 required; CCA-1 contributes; SHK-1+SLO-2 repolarise; SLO-2 sets rest,-,Liu et al. 2011 (PMC3039263),knockout/pharmacology,anchored,Ca transient requires EGL-19+UNC-68 (RyR); one Ca peak often corresponds to a burst of APs
+C1.7,tonic GABA inhibition,,present,qualitative,Liu et al. 2011 (PMC3039263),Results,anchored,resting potential falls after NMJ blockade -> tonic GABA input exists
+C1.8,membrane time-constant design anchor,tau_m,50-100 initial,ms,combined design (Liu 2011 + Gao&Zhen 2011 + P3 calibration),design doc sec.3,estimate,Liu 2011 has no input-resistance data; pinned by AP half-width 20ms + contraction timing + calibration probes
+C1b.1,single-AP-driven contraction,,one AP suffices,-,Gao & Zhen 2011 PNAS 108:2557-2562 (PMC3038695),Fig (0.1ms light stimulus),anchored,temporal lower bound of muscle excitation-contraction coupling
+C1b.2,AP-count vs postsynaptic-current relation,,positive correlation (frequency coding),-,Gao & Zhen 2011 (PMC3038695),Fig 6C,anchored,quantitative anchor of frequency coding; calibration probes benchmark directly against this curve
+C1b.3,synaptic reversal potentials,E_rev,ACh +20 / GABA -30 / rest ~-25,mV,Gao & Zhen 2011 (PMC3038695),Results,anchored,rest sits between the two -> dual excitatory/inhibitory modulation; basis for the GABA negative-sign design
+C1b.4,GABA blockade effect,,fully reversible block of AP + relaxation,qualitative,Gao & Zhen 2011 (PMC3038695),Results,anchored,behavioural-level validation anchor of the VD/DD relaxation branch
+C1b.5,fraction of spontaneous APs blocked by dTBC,,~88,%,Gao & Zhen 2011 (PMC3038695),Results,anchored,the remaining ~12% is myogenic residue
+C2.1,muscle-wave vs curvature-wave phase lag (low viscosity),,approximately constant along the body,qualitative,Pierce et al. 2025 PRX Life 3:023001,main-text Fig,anchored,buffer/1%MC: elasticity-dominated regime
+C2.2,phase lag (high viscosity/agar),,accumulates along the mid-body; local lead at head/tail,qualitative,Pierce et al. 2025 PRX Life 3:023001,main-text Fig,anchored,signature of the drag-dominated regime; environment-switch criterion for calibration probes
+C2.3,wavenumber relation,,buffer k_m>k_curv; agar k_m<k_curv,qualitative,Pierce et al. 2025 PRX Life 3:023001,main text,anchored,frequency locked everywhere; the lag comes from a wavenumber difference not a frequency difference
+C2.4,GCaMP kinetic delay,,uncorrected (absolute lag unusable),-,Pierce et al. 2025 PRX Life 3:023001,Methods,qualitative anchor,only relative lags may be used; must be declared in the paper
+C2.5,muscle-torque vs curvature phase difference (crawling),,~60,deg,Fang-Yen et al. 2010 PNAS 107:20323 (PMC2996704),main text p.10,qualitative anchor,model-predicted value; torque and curvature are in phase during swimming
+C2.6,dorsal/ventral muscle contraction phase,,ventral ~270 deg; dorsal ~90 deg,deg,eLife 2021 (PMC7986531),Ca-imaging Results,anchored,VD/DD Ca signals fall during contraction of the corresponding muscle
+C3.1,crawling curvature amplitude (normalised),kappa*L,5-6,-,Stephens et al. 2008 (PMC2276863),constitutive-geometry estimate,estimate,Stephens is in normalised units without absolute values; to be cross-validated by C3.6
+C3.2,omega/delta turn peak amplitude,a3,omega≈15; delta≈23,-,Broekmans et al. 2016 eLife 5:e17227,main text,anchored,lowest self-touch values; upper bound for turn-amplitude calibration
+C3.3,escape reorientation angle,delta_theta,-0.89π±0.05π (omega segment -0.90π±0.04π),rad,Broekmans et al. 2016 eLife 5:e17227,main text,anchored,literature source of the single-turn >90 deg hard criterion
+C3.4,local-curvature biomechanical cap,kappa_local_max,≈19.5,1/L,Broekmans et al. 2016 eLife 5:e17227,Methods/main text,anchored,tangent-angle difference ≤1.95 rad within 0.1L; prevents numerical over-bending
+C3.5,eigenmode tracking bounds,|a1..a5|,≤(18;18;34;12;6),-,Broekmans et al. 2016 eLife 5:e17227,Methods,anchored,eigenworm mode-amplitude caps
+C3.6,swim/crawl wavelength-frequency-curvature absolute values,lambda/f/kappa*L,TBD,mm;Hz;1/L,Fang-Yen et al. 2010 PNAS 107:20323 (PMC2996704),Table 1 (final version),TBD,the DASH manuscript version (PDF archived in refs_pdf) lacks in-table values; the PNAS final Table 1 is needed; Fig 3a-c trend plots can be digitised
+C5.1,body-wall bending elasticity coefficient,b,4e-12,N·m³,Fang-Yen et al. 2010 (PMC2996704),Fig 4c/Methods (p15),anchored,relaxation-viscosity slope; verified against the full text
+C5.2,body-wall internal viscosity coefficient,b_v,<1.5e-14,N·m³·s,Fang-Yen et al. 2010 (PMC2996704),Methods (p15),anchored,upper bound; internal elastic force ~100x internal viscous force -> negligible in the model
+C5.3,attack-angle peak,theta_a,45→55,deg,Fang-Yen et al. 2010 (PMC2996704),main text (p8)/Fig 3d,anchored,approximately constant across viscosity 1→28000 mPa·s; thrust-conservation criterion
+C5.4,total muscle-power stability,,<2× change across a 28000× viscosity range,-,Fang-Yen et al. 2010 (PMC2996704),main text (p11)/Fig 5a,anchored,external viscous dissipation varies ~1000×; constant power = the purpose of gait adaptation
+C5.5,thin-chamber drag correction,,~9.7,-,Fang-Yen et al. 2010 (PMC2996704),Methods (p16),anchored,settling speed bulk 0.66±0.04 vs thin 0.068±0.007 mm/s (N=10)
+C5.6,relaxation scaling law,τ∝ηLf^4,linear,-,Fang-Yen et al. 2010 (PMC2996704),Methods (p15),anchored,lowest-mode relaxation of a viscoelastic rod; used to calibrate environment stiffness
+A1,head-group muscle (rows 01-06) innervation,,RME4+RMD6+SMD4+SMB4=18,cells,data/neuron_muscle.csv (BAAIWorm export),measured audit,anchored,unit = EM contact count; specialised head muscle group
+A2,body-group muscle (rows 07-24) innervation,,DA9+DB7+DD6 (dorsal); VA12+VB11+VD13 (ventral) = 58,cells,data/neuron_muscle.csv,measured audit,anchored,dorsoventral quadrant grouping = the new muscle-layer grouping skeleton
+A3,GABA crossed innervation,,DD→dorsal muscle; VD→ventral muscle,-,data/neuron_muscle.csv,measured audit,anchored,crossed fingerprint complete; wiring basis of the relaxation branch
+C9.1,head-group amplitude peptidergic knob,FLP-12->FRPR-8,SMB release; mutants show increased body-bend amplitude,-,CeNeuro2026 abstract + KBRI 2024 (FLP-12/SMB->FRPR-8/AVD),abstract+main text,qualitative anchor,peptidergic output of SMB the head-group innervator; candidate for the v82 head-group gain interface
+C9.2,peptides acting directly on muscle channels,FLP->muscle ion channels,FLP-1-6 open Cl channels; FLP-6 ventral-contract dorsal-relax; FLP-8/14 biphasic rhythm,-,Ascaris muscle studies (Bowman 1996/2002; Maule 1994; Cowden&Stretton 1993),cited via reviews,qualitative anchor,evidence from a close nematode relative; direct peptide receptors on C. elegans muscle unconfirmed
+C9.3,NMJ presynaptic peptidergic modulation (ACh),nlp-12/flp-1/ins-22/ins-31,four-gene mutants aldicarb-resistant,-,Sieburth et al. 2005,screen,anchored,NMJ peptidergic modulation is widespread; one basis of the pep/g_tot mechanism

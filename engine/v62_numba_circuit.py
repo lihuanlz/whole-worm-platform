@@ -1,8 +1,8 @@
-# v62_numba_circuit.py  (W08-ACC2: numba JIT 版神经内核, 2026-10-10)
-# 与 v62_worm_circuit.py 数学逐项相同; 在 v62_fast_circuit 基础上把整个步进
-# (突触散加 + 门控 ODE + Euler + 护栏 + clamp) 编译为一个 @njit 内核。
-# 限制: 仅支持 syn_delay_ms=0 (W08 配置; 延迟缓冲未移植, 构造时断言)。
-# 对拍: verify_v62_numba.py vs 旧引擎 35K 步, 判据 max|dV| < 1e-6 mV。
+# v62_numba_circuit.py  (numba JIT neural kernel, 2026-10-10)
+# Mathematically identical term-by-term to v62_worm_circuit.py; on top of v62_fast_circuit it compiles
+# the whole step (synaptic scatter-add + gating ODE + Euler + guardrails + clamp) into one @njit kernel.
+# Limitation: only syn_delay_ms=0 is supported (delay buffer not ported; asserted at construction).
+# Parity: verify_v62_numba.py vs the old engine for 35K steps, criterion max|dV| < 1e-6 mV.
 import numpy as np
 import math
 from pathlib import Path
@@ -18,7 +18,7 @@ V_SCALE, S_MAX = 25.0, 1.5
 E_EX, TAU_EX = 0.0, 2.0
 E_INH, TAU_INH = -90.0, 5.0
 
-# ---- 规范门控列序 (IX 数组中的位置常数) ----
+# ---- Canonical gating column order (positional constants into the IX array) ----
 CANON = ["m_shal", "hf_shal", "hs_shal", "m_shak", "h_shak", "m_kir",
          "m_kvs1", "h_kvs1", "mf_kqt3", "ms_kqt3", "w_kqt3", "s_kqt3", "m_egl2",
          "m1_egl36", "m2_egl36", "m3_egl36", "m_cca1", "h_cca1",
@@ -30,14 +30,14 @@ C_M1E36, C_M2E36, C_M3E36 = 13, 14, 15
 C_CCA1, C_HCCA1, C_UNC2, C_HUNC2, C_EGL19, C_HSEGL19 = 16, 17, 18, 19, 20, 21
 C_MBK, C_MSLO1, C_MBK2, C_MSLO2, C_CA, C_MSK = 22, 23, 24, 25, 26, 27
 
-# ---- 参数列序常数 (与 _PKEYS 对齐) ----
+# ---- Parameter column-order constants (aligned with _PKEYS) ----
 for _i, _k in enumerate(_PKEYS):
     globals()["PK_" + _k.upper()] = _i
 
 
 @njit(cache=True)
 def _rhs_nb(Y, dY, P, Iext, IX, is_awc):
-    """anchored_engine_v55_batch.rhs_batch 的标量逐细胞翻译, 公式逐项相同。"""
+    """Scalar per-cell translation of anchored_engine_v55_batch.rhs_batch; formulas identical term by term."""
     n = Y.shape[0]
     for r in range(n):
         v = Y[r, 0]
@@ -140,7 +140,7 @@ def _rhs_nb(Y, dY, P, Iext, IX, is_awc):
         dY[r, IX[C_HSEGL19]] = (hinf_e - h) / ths_e
         I_egl19 = P[r, PK_GEGL19] * m * h * (v - ECA)
         alpha_e = minf_e / tm_e; beta_e = 1.0 / tm_e - alpha_e
-        # ---- Ca 纳米域 + SLO1/SLO2 复合体 ----
+        # ---- Ca nanodomain + SLO1/SLO2 complex ----
         r_ = 13e-9; d_ = 250e-12; F_ = 96485.0; kb_ = 500e6; b_ = 30e-6; gsc_ = 40e-12
         cao = ((abs(gsc_ * (v - ECA) * 1e-3) / (8 * np.pi * r_ * d_ * F_))
                * np.exp(-r_ / np.sqrt(d_ / (kb_ * b_))) * 1e6 * 1e-3) + 0.05
@@ -177,7 +177,7 @@ def _rhs_nb(Y, dY, P, Iext, IX, is_awc):
         tm_s2 = (alpha_u + beta_u + kcm1) / den4
         dY[r, IX[C_MSLO2]] = (minf_s2 - Y[r, IX[C_MSLO2]]) / tm_s2
         I_slo2 = P[r, PK_GSLO2] * Y[r, IX[C_MSLO2]] * h_unc2 * (v - EK)
-        # ---- 胞内钙 + KCNL ----
+        # ---- Intracellular calcium + KCNL ----
         I_ca = I_unc2 + I_egl19 + I_cca1
         alpha_ca = 1.0 / (2.0 * P[r, PK_VOL] * 96.485)
         ca = Y[r, IX[C_CA]]
@@ -189,7 +189,7 @@ def _rhs_nb(Y, dY, P, Iext, IX, is_awc):
         minf_sk = ca / (0.00033 + ca)
         dY[r, IX[C_MSK]] = (minf_sk - Y[r, IX[C_MSK]]) / 6.3
         I_sk = P[r, PK_GSK] * Y[r, IX[C_MSK]] * (v - EK)
-        # ---- 漏与总和 ----
+        # ---- Leak and total ----
         I_leak = P[r, PK_GLEAK] * (v - P[r, PK_ELEAK])
         I_nca = P[r, PK_GNCA] * (v - ENA)
         I_tot = (I_shal + I_shak + I_kir + I_kvs1 + I_kqt3 + I_egl2 + I_egl36
@@ -248,7 +248,7 @@ def _step_nb(Yawc, Pawc, Yrmd, Prmd, rows_awc, rows_rmd, IXawc, IXrmd,
     # 5) currents
     _csr_mv(Lg_d, Lg_i, Lg_p, V, I_gap)
     if has_rect:
-        # W33: 选择性整流修正 (非欧姆): 顺向电导 *(1+alpha), 逆向 *(1-alpha), 反对称守恒
+        # W33: selective rectification correction (non-ohmic): forward conductance *(1+alpha), backward *(1-alpha), antisymmetry conserved
         for e in range(rect_i.shape[0]):
             ii = rect_i[e]
             jj = rect_j[e]
@@ -257,9 +257,9 @@ def _step_nb(Yawc, Pawc, Yrmd, Prmd, rows_awc, rows_rmd, IXawc, IXrmd,
             I_gap[ii] += corr
             I_gap[jj] -= corr
     if has_bg:
-        # W47: bell 形 Vj 门控 (Liu 2006 JBC Fig 2B 实测: Boltzmann A=0.10, V0=40, Gjmin=0.13)
-        # |Vj| 小全开, |Vj| 大电导关到 13% -> 耦合块两端电压拉大时自动断流, 防撞轨雪崩
-        # 逐边折减欧姆电流 i_ohm*(gate-1), 反对称守恒 (与 L_gap CSR 符号约定无关)
+        # W47: bell-shaped Vj gating (Liu 2006 JBC Fig 2B measured: Boltzmann A=0.10, V0=40, Gjmin=0.13)
+        # fully open at small |Vj|, conductance closes to 13% at large |Vj| -> auto-decouples when the two ends of a coupled block diverge, guarding against rail avalanche
+        # per-edge reduction of the ohmic current i_ohm*(gate-1), antisymmetry conserved (independent of the L_gap CSR sign convention)
         for e in range(bg_i.shape[0]):
             ii = bg_i[e]
             jj = bg_j[e]
@@ -305,7 +305,7 @@ def _step_nb(Yawc, Pawc, Yrmd, Prmd, rows_awc, rows_rmd, IXawc, IXrmd,
                 Yrmd[i, 0] = vclip_lo
             elif vv > vclip_hi:
                 Yrmd[i, 0] = vclip_hi
-    # 8) clamp (恒等: v62 在 Euler 之后覆写电压列)
+    # 8) clamp (identity: v62 overwrites the voltage column after Euler)
     for j in range(n_clamp):
         if clamp_lay[j] == 0:
             Yawc[clamp_row[j], 0] = clamp_val[j]
@@ -314,38 +314,38 @@ def _step_nb(Yawc, Pawc, Yrmd, Prmd, rows_awc, rows_rmd, IXawc, IXrmd,
 
 
 class Worm62NB(Worm62Fast):
-    """Worm62Fast 的 numba 内核版; 仅支持 syn_delay_ms=0。接口完全一致。"""
+    """numba-kernel version of Worm62Fast; only syn_delay_ms=0 supported. Interface fully identical."""
 
     def __init__(self, *a, e_inh=-90.0, rect_alpha=0.0, rect_vr=15.0, mem_tau_scale=1.0, bgate=0.0, **k):
         super().__init__(*a, **k)
         self.e_inh = float(e_inh)
         self.rect_alpha = float(rect_alpha)
         self.rect_vr = float(rect_vr)
-        assert self._sbuf is None, "Worm62NB 仅支持 syn_delay_ms=0"
+        assert self._sbuf is None, "Worm62NB supports only syn_delay_ms=0"
         assert len(self.groups) == 2 and self.groups[0][0] == "AWC" and self.groups[1][0] == "RMD"
-        # 组数据
+        # group data
         self._Yawc = self.groups[0][2]
         self._Yrmd = self.groups[1][2]
         self._rows_awc = self.groups[0][3].astype(np.int64)
         self._rows_rmd = self.groups[1][3].astype(np.int64)
         self._Pawc = np.stack([self.groups[0][1][k] for k in _PKEYS], axis=1)
         self._Prmd = np.stack([self.groups[1][1][k] for k in _PKEYS], axis=1)
-        # W36: 膜积分速度缩放 (2026-10-12) - C/scale => 积分快 scale 倍, 稳态 I-V 不动
-        # 物理释义: 在体 NMJ/感觉运动突触有效电流远大于蒸馏增益下的有效电流 (卷宗四十六节 tau3 段)
+        # W36: membrane integration speed scaling (2026-10-12) - C/scale => integrates scale-times faster, steady-state I-V unchanged
+        # Physical reading: in-vivo NMJ/sensorimotor synapse effective currents far exceed those under the distilled gain
         if mem_tau_scale != 1.0:
             self._Pawc[:, PK_C] /= float(mem_tau_scale)
             self._Prmd[:, PK_C] /= float(mem_tau_scale)
             print(f"[W36] membrane tau scale x{mem_tau_scale}: C/{mem_tau_scale}, steady-state I-V unchanged", flush=True)
-        # 门控列索引 (规范序 -> 实际列)
+        # gating column indices (canonical order -> actual columns)
         idx_awc = {n: i + 1 for i, n in enumerate(GATES_AWC)}
         idx_rmd = {n: i + 1 for i, n in enumerate(GATES_RMD)}
         self._IXawc = np.array([idx_awc.get(n, -1) for n in CANON], dtype=np.int64)
         self._IXrmd = np.array([idx_rmd.get(n, -1) for n in CANON], dtype=np.int64)
-        # CSR 数组
+        # CSR arrays
         def _csr(M):
             return M.data.astype(float), M.indices.astype(np.int64), M.indptr.astype(np.int64)
         self._Mex = _csr(self.M_ex); self._Min = _csr(self.M_in)
-        self._csr = _csr  # W54: set_abx 换档时刷新用
+        self._csr = _csr  # W54: refreshed when set_abx shifts gears
         self._Mwex = _csr(self.M_wlex); self._Mwin = _csr(self.M_wlin)
         self._Lg = _csr(self.L_gap)
         # scratch
@@ -359,17 +359,17 @@ class Worm62NB(Worm62Fast):
         self._Iex0 = np.zeros(N)
 
     def _refresh_mex(self):
-        # W54: A->B 串扰换档后刷新 numba 内核读取的 CSR 数组
+        # W54: refresh the CSR arrays read by the numba kernel after an A->B crosstalk gear shift
         self._Mex = self._csr(self.M_ex)
-        # clamp 缓冲 (上限 64 个钳制细胞)
+        # clamp buffer (up to 64 clamped cells)
         self._cl_lay = np.zeros(64, np.int64); self._cl_row = np.zeros(64, np.int64)
         self._cl_val = np.zeros(64)
-        # W33: 选择性整流边集 (AVB->B类 与 B类链 前->后); rect_alpha=0 时 has_rect=False 旧行为逐比特
+        # W33: selective-rectification edge set (AVB->B-class and B-class chain anterior->posterior); rect_alpha=0 gives has_rect=False, old behaviour bit-identical
         self._rect_i, self._rect_j, self._rect_w = self._build_rect()
         self._has_rect = bool(self.rect_alpha != 0.0 and self._rect_i.shape[0] > 0)
         if self.rect_alpha != 0.0:
             print(f"[W33] gap rectification ON: {self._rect_i.shape[0]} edges, alpha={self.rect_alpha}, Vr={self.rect_vr} mV", flush=True)
-        # W47: bell 门控缝隙连接边集 (全部 gap 边, Liu2006 锚); bgate=0 时 has_bg=False 旧行为逐比特
+        # W47: bell-gated gap-junction edge set (all gap edges, Liu 2006 anchor); bgate=0 gives has_bg=False, old behaviour bit-identical
         self._bgate = float(bgate)
         if self._bgate != 0.0:
             self._bg_i = self.A_g.astype(np.int64)
@@ -413,7 +413,7 @@ class Worm62NB(Worm62Fast):
         return np.array(ri, np.int64), np.array(rj, np.int64), np.array(rw, float)
 
     def _warmup(self):
-        # 在状态副本上编译内核, 不碰真实状态
+        # compile the kernel on a copy of the state, without touching the real state
         _step_nb(self._Yawc.copy(), self._Pawc, self._Yrmd.copy(), self._Prmd,
                  self._rows_awc, self._rows_rmd, self._IXawc, self._IXrmd,
                  self.gA.copy(), self.gI.copy(), self.gWA.copy(), self.gWI.copy(),

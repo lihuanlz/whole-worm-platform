@@ -1,9 +1,9 @@
-# jax_circuit.py  (W60-ACC3: JAX 批量神经内核, 2026-10-12)
-# 数学逐项镜像 v62_numba_circuit._step_nb (显式 Euler, 同 DT, 同更新顺序)。
-# 架构参照 kairess/worm-whisperer 的 jaxsim/batch 模式 (PolyForm Noncommercial, 引用致谢):
-#   dense 矩阵 + lax.scan 时间积分 + vmap 种群批评。
-# 差异: 通道方程/参数全为本项目 v62 (重锚常数), 非 c302 C2。
-# 对拍: test_jax_parity.py vs numba 引擎, 判据见文件末尾。
+# jax_circuit.py  (JAX batched neural kernel, 2026-10-12)
+# The maths mirrors v62_numba_circuit._step_nb term by term (explicit Euler, same DT, same update order).
+# Architecture follows the jaxsim/batch pattern of kairess/worm-whisperer (PolyForm Noncommercial, acknowledged):
+#   dense matrices + lax.scan time integration + vmap population evaluation.
+# Difference: channel equations/parameters are entirely this project's v62 (re-anchored constants), not c302 C2.
+# Parity: test_jax_parity.py vs the numba engine; criteria at end of file.
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -11,13 +11,13 @@ from jax import lax
 
 jax.config.update("jax_enable_x64", True)
 
-# ---- 与 v62_numba_circuit 相同的常数 ----
+# ---- Same constants as v62_numba_circuit ----
 V_SCALE, S_MAX = 25.0, 1.5
 EK, ECA, ENA = -80.0, 60.0, 30.0
 E_EX, TAU_EX = 0.0, 2.0
 TAU_INH = 5.0
 
-# 规范门控列序 (与 numba CANON 一致); Y 列: 0=V, 1..28 门控
+# Canonical gating column order (matches numba CANON); Y columns: 0=V, 1..28 gates
 CANON = ["m_shal", "hf_shal", "hs_shal", "m_shak", "h_shak", "m_kir",
          "m_kvs1", "h_kvs1", "mf_kqt3", "ms_kqt3", "w_kqt3", "s_kqt3", "m_egl2",
          "m1_egl36", "m2_egl36", "m3_egl36", "m_cca1", "h_cca1",
@@ -37,15 +37,15 @@ PK = {k: i for i, k in enumerate(_PKEYS)}
 
 
 def extract(net, W, muscle_maps, dt_ms):
-    """从建好的 Worm62NB 实例提取 JAX 参数包 (宿主侧一次性)。
-    net: build_net() 产物; W: w54_redistill.W (需 ensure_param_struct 已跑);
-    muscle_maps: load_muscle_maps(net) 产物。"""
+    """Extract the JAX parameter pack from a built Worm62NB instance (host-side, one-off).
+    net: product of build_net(); W: w54_redistill.W (ensure_param_struct must have run);
+    muscle_maps: product of load_muscle_maps(net)."""
     from scipy.sparse import csr_matrix
     N = net.N
     chem, sign, gap = W["chem"], W["sign"], W["gap"]
     cmasks, gmasks = W["cmasks"], W["gmasks"]
 
-    # ---- 细胞组 → 规范 29 列布局 ----
+    # ---- Cell groups → canonical 29-column layout ----
     def canon_group(gi):
         lay, Pv, Y, rows = net.groups[gi]
         IX = net._IXawc if lay == "AWC" else net._IXrmd
@@ -62,7 +62,7 @@ def extract(net, W, muscle_maps, dt_ms):
     Prmd, Y0rmd, rows_rmd, lay1 = canon_group(1)
     assert lay0 == "AWC" and lay1 == "RMD"
 
-    # ---- 单位 dense 矩阵 (乘子=1 时的模式矩阵) ----
+    # ---- Unit dense matrices (pattern matrices when multiplier=1) ----
     ex = sign > 0
     def chem_dense(mask_rows, take_ex):
         M = np.zeros((N, N))
@@ -105,7 +105,7 @@ def extract(net, W, muscle_maps, dt_ms):
 
 
 def _rhs(v, Y, Pm, is_awc):
-    """逐行向量化 rhs; Pm (n,20) 参数; 返回 dY (n,29)。逐项镜像 _rhs_nb。"""
+    """Row-vectorised rhs; Pm (n,20) parameters; returns dY (n,29). Mirrors _rhs_nb term by term."""
     exp = jnp.exp
     dY = jnp.zeros_like(Y)
     def S(ci): return Y[:, 1 + ci]
@@ -202,7 +202,7 @@ def _rhs(v, Y, Pm, is_awc):
     I_egl19 = Pm[:, PK["gegl19"]] * S(C_EGL19) * S(C_HSEGL19) * (v - ECA)
     alpha_e = minf_e / tm_e; beta_e = 1.0 / tm_e - alpha_e
 
-    # Ca 纳米域 + SLO1/SLO2
+    # Ca nanodomain + SLO1/SLO2
     r_, d_, F_, kb_, b_, gsc_ = 13e-9, 250e-12, 96485.0, 500e6, 30e-6, 40e-12
     cao = ((jnp.abs(gsc_ * (v - ECA) * 1e-3) / (8 * jnp.pi * r_ * d_ * F_))
            * exp(-r_ / jnp.sqrt(d_ / (kb_ * b_))) * 1e6 * 1e-3) + 0.05
@@ -238,7 +238,7 @@ def _rhs(v, Y, Pm, is_awc):
     dY = D(C_MSLO2, (minf_s2 - S(C_MSLO2)) / tm_s2)
     I_slo2 = Pm[:, PK["gslo2"]] * S(C_MSLO2) * S(C_HUNC2) * (v - EK)
 
-    # 胞内钙 + KCNL
+    # Intracellular calcium + KCNL
     I_ca = I_unc2 + I_egl19 + I_cca1
     alpha_ca = 1.0 / (2.0 * Pm[:, PK["vol"]] * 96.485)
     ca = S(C_CA)
@@ -252,15 +252,15 @@ def _rhs(v, Y, Pm, is_awc):
     I_nca = Pm[:, PK["gnca"]] * (v - ENA)
     I_tot = (I_shal + I_shak + I_kir + I_kvs1 + I_kqt3 + I_egl2 + I_egl36
              + I_cca1 + I_unc2 + I_egl19 + I_bk + I_slo1 + I_bk2 + I_slo2 + I_sk + I_leak + I_nca)
-    dY = dY.at[:, 0].set((0.0 - I_tot) / Pm[:, PK["C"]])   # Iext 在步进函数中补
+    dY = dY.at[:, 0].set((0.0 - I_tot) / Pm[:, PK["C"]])   # Iext is added in the stepping function
     return dY
 
 
 
 def build_eval(P, T_ticks, ctrl_hz=30, fwd_idx=(), n2w_idx=()):
-    """构造个体评估函数: theta(11,) -> (acts, dm) 各 (T_ticks-excwarm, 96)。
-    驱动/钳制/肌肉逻辑逐项镜像 w54_redistill.eval_theta (CTRL_HZ=30 配置)。
-    返回的函数可被 jit / vmap。"""
+    """Build the individual evaluation function: theta(11,) -> (acts, dm), each (T_ticks-excwarm, 96).
+    Drive/clamp/muscle logic mirrors w54_redistill.eval_theta term by term (CTRL_HZ=30 configuration).
+    The returned function can be jit / vmap'ed."""
     N = P["N"]; dt = P["dt"]
     NSTEPS = int(round(1000.0 / ctrl_hz / dt))
     warm_ticks = int(round(3.0 * ctrl_hz)); excwarm = int(round(0.5 * ctrl_hz))
@@ -278,7 +278,7 @@ def build_eval(P, T_ticks, ctrl_hz=30, fwd_idx=(), n2w_idx=()):
     fwd = jnp.asarray(list(fwd_idx), jnp.int64) if len(fwd_idx) else None
     vclip = P["vclip"]; e_inh = P["e_inh"]
 
-    # n2w 钳制细胞的组属与组内行号
+    # group membership and within-group row indices of the n2w clamped cells
     n2w = list(n2w_idx)
     has_n2w = len(n2w) > 0
     if has_n2w:
@@ -351,7 +351,7 @@ def build_eval(P, T_ticks, ctrl_hz=30, fwd_idx=(), n2w_idx=()):
             new_ref = jnp.where(trig, ref_ticks, musc_ref)
             new_a = new_a + exc_decay * (0.0 - new_a)
             new_ref = jnp.where(new_ref > 0, new_ref - 1.0, new_ref)
-            do_musc = tick >= excwarm                       # eval_theta: tick<excwarm 时肌肉逻辑冻结, 记录 0
+            do_musc = tick >= excwarm                       # eval_theta: muscle logic frozen for tick<excwarm, records 0
             musc_a = jnp.where(do_musc, new_a, musc_a)
             musc_ref = jnp.where(do_musc, new_ref, musc_ref)
             act_row = jnp.where(do_musc, jnp.clip(new_a, 0.0, 0.8), jnp.zeros(96, jnp.float64))
@@ -373,9 +373,9 @@ def build_batch(P, T_ticks, ctrl_hz=30, fwd_idx=(), n2w_idx=()):
 
 
 def build_step(P, fwd_idx=(), n2w_idx=(), ctrl_hz=30):
-    """暴露单 dt 步进 (诊断/闭环用): 固定 Mex/Min/Lg 由 theta 组装一次传入。
-    返回 jit step(state, Mex, Min, Lg, fwdi, do_clamp, clamp_v) -> state。
-    state = (Yawc, Yrmd, gA, gI)。数学与 one_substep 逐项相同。"""
+    """Expose a single-dt step (diagnostics/closed loop): fixed Mex/Min/Lg assembled from theta once and passed in.
+    Returns a jit step(state, Mex, Min, Lg, fwdi, do_clamp, clamp_v) -> state.
+    state = (Yawc, Yrmd, gA, gI). The maths is identical to one_substep, term by term."""
     N = P["N"]; dt = P["dt"]
     Pawc = jnp.asarray(P["Pawc"]); Prmd = jnp.asarray(P["Prmd"])
     rows_awc = jnp.asarray(P["rows_awc"]); rows_rmd = jnp.asarray(P["rows_rmd"])

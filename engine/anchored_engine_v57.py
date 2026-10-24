@@ -1,68 +1,68 @@
 # anchored_engine_v57.py
-# 【v5.7 = v5.6 + W09 UNC-2 固有振荡臂（2026-10-10）：
-#   A/B 类兴奋性运动神经元 (VA/VB/DA/DB) 的 gunc2 由模块全局 GUNC2_AB 覆盖。
-#   依据：Gao et al. 2018 eLife e29915 —— UNC-2 (P/Q/N 型 HVA 钙通道) 是
-#   A 类运动神经元固有钙振荡的必要成分（unc-2(lf) 振幅频率双降、unc-2(gf) 双升、
-#   unc-13 背景下振荡仍在=细胞自主）；Xu et al. 2018 PNAS —— AVB→B 电突触把
-#   B 类推过振荡阈值，缺之则弯曲幅度向尾单调衰减（=我们 W08 的"波不传"症状）。
-#   Nicoletti 电压钳拟合里 VA/DA 的 gunc2=0 是钳制态欠定方向，W09 加回。
-#   负对照设计：VD/AVA/AWC/RMD 不覆盖；GUNC2_AB=0 时与 v56 逐值相同。
-#   v56 文件逐字节不动。】
+# [v5.7 = v5.6 + UNC-2 intrinsic-oscillation arm (2026-10-10):
+#   gunc2 of class-A/B excitatory motor neurons (VA/VB/DA/DB) is overridden by the module-global GUNC2_AB.
+#   Basis: Gao et al. 2018 eLife e29915 — UNC-2 (P/Q/N-type HVA calcium channel) is
+#   required for the intrinsic calcium oscillation of class-A motor neurons (unc-2(lf) lowers amplitude and frequency, unc-2(gf) raises both,
+#   oscillation persists on an unc-13 background = cell-autonomous); Xu et al. 2018 PNAS — the AVB→B gap junction pushes
+#   class B across the oscillation threshold; without it, bending amplitude decays monotonically toward the tail (our "wave does not propagate" symptom).
+#   gunc2=0 for VA/DA in the Nicoletti voltage-clamp fits is an underdetermined direction of the clamped state; added back here.
+#   Negative-control design: VD/AVA/AWC/RMD not overridden; GUNC2_AB=0 is value-identical to v56.
+#   The v56 file is left byte-identical.]
 import anchored_engine_v56 as _v56
 
-GUNC2_AB = 0.0   # nS; 调用方在构造网络前设置 (w01_closed_loop_w09.py 读环境变量 W09_GUNC2AB)
-GNCA_A = -1.0    # nS; >=0 时覆盖 A 类 (VA/DA) 的 gnca (v84: Gao 2018 + Frontiers 2022
-                 # NCA Na+ leak 是 A-MN rPSC/固有振荡的必要去极化引擎; 拟合 VA/DA gnca=0.01
-                 # 全身最低 -> 孤立平衡点 -79mV 远在 UNC-2 HVA 激活域之下 -> 无自振。
-                 # Nicoletti 钳制数据对 leak 分量欠定, 与 GUNC2_AB 同性质补回)
+GUNC2_AB = 0.0   # nS; set by the caller before network construction
+GNCA_A = -1.0    # nS; >=0 overrides gnca of class A (VA/DA) (v84: Gao 2018 + Frontiers 2022
+                 # NCA Na+ leak is the necessary depolarising engine of A-MN rPSC/intrinsic oscillation; fitted VA/DA gnca=0.01
+                 # the lowest in the body -> isolated equilibrium -79 mV, far below the UNC-2 HVA activation domain -> no self-oscillation.
+                 # The Nicoletti clamp data underdetermine the leak component; restored under the same discipline as GUNC2_AB)
 
 _AB_CLASSES = {"VA", "VB", "DA", "DB"}
 _A_CLASSES = {"VA", "DA"}
 _GABA_CLASSES = {"DD", "VD"}
 
-GLEAK_GABA = 1.0   # 倍数; !=1.0 时缩放 DD/VD 的 gleak (v86: C2.6 eLife 2021 PMC7986531
-                   # 锚定 VD/DD 钙信号随爬行节律振荡——实测模型 DD 被强直性饱和释放
-                   # (vrel 原位表 tonic 饱和区) 钉在 -18mV 高电导区, 电压钳死不振荡,
-                   # 交叉抑制相位分量死亡 -> 腹侧过驱动 -> 爬行静态腹弯左拐。
-                   # Nicoletti 孤立钳制拟合的 gleak=0.4/0.2 未含在位强直驱动,
-                   # 钳制态欠定方向, 按 GUNC2_AB 同纪律补回; 1.0=逐位不变)
+GLEAK_GABA = 1.0   # multiplier; !=1.0 scales gleak of DD/VD (v86: eLife 2021 PMC7986531
+                   # anchors VD/DD calcium oscillating with the crawl rhythm — in the measured model DD is pinned by tonic saturated release
+                   # (tonic saturation zone of the in-situ vrel table) at the -18 mV high-conductance region, voltage-clamped so it cannot oscillate,
+                   # the cross-inhibition phase component dies -> ventral overdrive -> crawling bends ventrally and drifts left.
+                   # gleak=0.4/0.2 from the Nicoletti isolated-clamp fits does not include in-situ tonic drive,
+                   # an underdetermined direction of the clamped state, restored under the same discipline as GUNC2_AB; 1.0 = bit-identical)
 
-GEGL36_GABA = -1.0  # nS; >=0 时覆盖 DD/VD (ctype=VD) 的 gegl36 (v87: C2.6 同锚。
-                    # VD 配方 gegl36=0 是 Nicoletti 2024 钳制拟合的欠定方向——
-                    # 单细胞探针实测 (probe_dd_vd_load/egl36_2026-10-21): 缺 EGL-36 时
-                    # EGL-19 L型平台 (-25..-5mV 负斜率再生区) 无高压 K 复极 ->
-                    # 强直驱动下泊上 ~-4mV 平台, 波频调制死亡 (std<1mV)。
-                    # EGL-36 高压激活: 静息关闭不伤 VD5 -45.8+-1.9 锚,
-                    # >-20mV 激活复极平台。0.6/1.0 两候选均过锚 (iso -46.5/-47.5),
-                    # 0=逐位不变负对照)
+GEGL36_GABA = -1.0  # nS; >=0 overrides gegl36 of DD/VD (ctype=VD) (v87: same anchor).
+                    # gegl36=0 in the VD recipe is an underdetermined direction of the Nicoletti 2024 clamp fit —
+                    # single-cell probe measurements (probe_dd_vd_load/egl36_2026-10-21): without EGL-36,
+                    # the EGL-19 L-type plateau (-25..-5 mV negative-slope regenerative region) has no high-voltage K repolarisation ->
+                    # under tonic drive it parks at a ~-4 mV plateau and wave-frequency modulation dies (std<1 mV).
+                    # EGL-36 high-voltage activation: closed at rest so the VD5 -45.8+-1.9 anchor is unharmed,
+                    # activates above -20 mV to repolarise the plateau. Both candidates 0.6/1.0 pass the anchors (iso -46.5/-47.5),
+                    # 0 = bit-identical negative control)
 
-UNC2PED_A = -1.0   # [0,1); >=0 时设 A 类 (VA/DA) UNC-2 失活门非失活分量 (2026-10-23, W13)
-                   # 依据: Gao 2018 eLife e29915 —— A-MN 内源振荡必需 UNC-2 窗流,
-                   # unc-2(gf)=减弱失活动力学→振荡增强; CaV2 家族普遍存在非失活成分。
-                   # Nicoletti 钳制拟合 hinf 半失活 -77.47mV 使 -38mV 处 h∞≈0.001,
-                   # 窗流=0 → 细胞结构上不可能振荡 (探针 p1-p5 判决: 单稳态无磁滞)。
-                   # ped=0.20 恢复双稳窗 I∈[0,1.8]pA (probe_amn_refit_s2/s4c 验证:
-                   # 静息锚 -72.1 守 / up-state 点得燃 / AVA 分流门控三相全过)
-GSK_A = -1.0       # nS; >=0 时设 A 类 KCNL/SK 钙激活钾电导 (2026-10-23, W13)
-                   # KCNL 解剖表达但拟合贡献=0=欠定方向; 恢复 0.05 作慢刹车
-CATAUSCALE_A = -1.0  # >=0 时设 A 类胞内钙清除时间常数倍数 (2026-10-23, W13)
-                     # 50ms=微域清除; 体钙清除秒级 (Gao 2018 DA9 钙振荡周期~50s); 取 40(=2s)
-GUNC2_A = -1.0       # nS; >=0 时覆盖 A 类 (VA/DA) gunc2 (2026-10-23, W13)
-                     # E2d 实测: 网络内 A-MN 被 37 gap+40 chem 边钳制, GUNC2_AB=0.4 的
-                     # 窗流(~10pA)相对网络电导(<1%)可忽略 => 需放到网络尺度 (1.0+)。
-                     # Nicoletti 拟合 gunc2=0=欠定方向, 幅值本属自由选择;
-                     # 负对照: VB/DB 不覆盖仍走 GUNC2_AB=0.4, -1=逐位不变
+UNC2PED_A = -1.0   # [0,1); >=0 sets the non-inactivating fraction of the UNC-2 inactivation gate of class A (VA/DA) (2026-10-23, W13)
+                   # Basis: Gao 2018 eLife e29915 — the A-MN endogenous oscillation requires the UNC-2 window current,
+                   # unc-2(gf) = weakened inactivation kinetics → stronger oscillation; CaV2-family channels commonly carry a non-inactivating component.
+                   # The Nicoletti clamp fit hinf half-inactivation -77.47 mV gives h∞≈0.001 at -38 mV,
+                   # window current = 0 → the cell structurally cannot oscillate (probe p1-p5 verdict: monostable, no hysteresis).
+                   # ped=0.20 restores the bistable window I∈[0,1.8] pA (probe_amn_refit_s2/s4c verified:
+                   # rest anchor -72.1 holds / up-state ignitable / AVA shunt-gating three phases all pass)
+GSK_A = -1.0       # nS; >=0 sets the class-A KCNL/SK calcium-activated potassium conductance (2026-10-23, W13)
+                   # KCNL is anatomically expressed but its fitted contribution=0 = underdetermined direction; 0.05 restored as a slow brake
+CATAUSCALE_A = -1.0  # >=0 sets the class-A intracellular calcium clearance time-constant multiplier (2026-10-23, W13)
+                     # 50 ms = microdomain clearance; somatic clearance is seconds-level (Gao 2018 DA9 Ca oscillation period ~50 s); 40 taken (=2 s)
+GUNC2_A = -1.0       # nS; >=0 overrides gunc2 of class A (VA/DA) (2026-10-23, W13)
+                     # E2d measurement: in-network A-MNs are clamped by 37 gap + 40 chem edges; the GUNC2_AB=0.4
+                     # window current (~10 pA) is negligible against network conductances (<1%) => must be raised to network scale (1.0+).
+                     # Nicoletti fitted gunc2=0 = underdetermined direction; its magnitude is a free choice anyway;
+                     # negative control: VB/DB not overridden, still run GUNC2_AB=0.4; -1 = bit-identical
 
-GUNC2_AVA = -1.0     # nS; >=0 时覆盖 AVA 的 gunc2 (2026-10-23, W52 AVA再生平台)
-                     # 依据: Meng 2024 Sci Adv adk0002 (PMC11006214) — AVA 多稳态去极化
-                     # (-30~-10, 两个稳定区制 -30/-20 与 -15/-10), 基线近 UNC-2 开阈
-                     # (紧张性 ACh 释放); Nicoletti 拟合 AVA gunc2=0 = 钳制态欠定方向,
-                     # 与 GUNC2_AB/GUNC2_A 同纪律补回; minf 半激活 -37mV 使 AVA 基线(-25)
-                     # 已在激活区, ped 非失活分量即再生窗流; -1=逐位不变
-UNC2PED_AVA = -1.0   # [0,1); >=0 时设 AVA UNC-2 非失活分量 (W52, Gao 2018 窗流锚同 W13)
-GSK_AVA = -1.0       # nS; >=0 时设 AVA KCNL/SK 钙激活钾电导 (W52: 秒级自终结刹车;
-                     # AVA SK 拟合贡献=0=欠定方向; 体钙2s清除 -> 平台数秒自终结)
-CATAUSCALE_AVA = -1.0  # >=0 时设 AVA 胞内钙清除时间常数倍数 (W52: 微域50ms->体钙2s)
+GUNC2_AVA = -1.0     # nS; >=0 overrides gunc2 of AVA (2026-10-23, W52 AVA regenerative plateau)
+                     # Basis: Meng 2024 Sci Adv adk0002 (PMC11006214) — AVA multistable depolarisation
+                     # (-30~-10, two stable regimes -30/-20 and -15/-10), baseline near the UNC-2 opening threshold
+                     # (tonic ACh release); Nicoletti fitted AVA gunc2=0 = underdetermined clamped-state direction,
+                     # restored under the same discipline as GUNC2_AB/GUNC2_A; minf half-activation -37 mV puts the AVA baseline (-25)
+                     # already inside the activation region; the ped non-inactivating fraction is the regenerative window current; -1 = bit-identical
+UNC2PED_AVA = -1.0   # [0,1); >=0 sets the AVA UNC-2 non-inactivating fraction (W52; Gao 2018 window-current anchor as in W13)
+GSK_AVA = -1.0       # nS; >=0 sets the AVA KCNL/SK calcium-activated potassium conductance (W52: seconds-scale self-terminating brake;
+                     # AVA SK fitted contribution=0 = underdetermined direction; somatic Ca 2 s clearance -> plateau self-terminates within seconds)
+CATAUSCALE_AVA = -1.0  # >=0 sets the AVA intracellular calcium clearance time-constant multiplier (W52: microdomain 50 ms -> somatic 2 s)
 
 _AVA_CLASSES = {"AVA"}
 

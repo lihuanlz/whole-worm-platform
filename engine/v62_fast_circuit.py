@@ -1,13 +1,13 @@
-# v62_fast_circuit.py  (W08-ACC: v62 加速版, 2026-10-10)
-# 与 v62_worm_circuit.py 数学逐项相同, 三处工程加速:
-#   1) 合并组积分: 8 个细胞类只有 2 种门控布局 (AWC / RMD),
-#      RMD 布局的 7 个类 (VA/VB/VD/DA/DB/AVA/RMD) 合并为一个 (78, n_states) 矩阵,
-#      参数按行广播 -> 每步 rhs 调用 8 次降为 2 次。
-#   2) np.add.at 散加换 scipy.sparse CSR 矩阵乘 (化学兴奋/抑制, 无线兴奋/抑制, 电突触 Laplacian)。
-#   3) clamp 细胞->组内行 预建 owner 表, 不再每步 np.nonzero 搜索。
-# 数值说明: 合并组内逐元素运算与逐类调用逐比特同序; 稀疏 matvec 求和顺序与 add.at 不同,
-# 末位 ulp 级差异 (~1e-16 相对), 由 verify_v62_fast.py 对拍登记实际漂移。
-# 接口与 Worm62 一致: __init__(g_syn, g_gap, ...), step(clamp, I_extra), _V(), idx/neurons/N/t。
+# v62_fast_circuit.py  (accelerated v62, 2026-10-10)
+# Mathematically identical term-by-term to v62_worm_circuit.py, with three engineering accelerations:
+#   1) merged-group integration: the 8 cell classes have only 2 gating layouts (AWC / RMD),
+#      the 7 classes on the RMD layout (VA/VB/VD/DA/DB/AVA/RMD) are merged into one (78, n_states) matrix,
+#      parameters broadcast by row -> rhs calls per step drop from 8 to 2.
+#   2) np.add.at scatter-adds replaced by scipy.sparse CSR matvecs (chemical exc/inh, wireless exc/inh, gap-junction Laplacian).
+#   3) clamp cell->within-group row owner table prebuilt; no per-step np.nonzero search.
+# Numerics note: element-wise ops inside merged groups run in the same order as per-class calls, bit-for-bit; sparse matvec sums in a different order than add.at,
+# giving ulp-level differences (~1e-16 relative), logged by the verify_v62_fast.py parity run.
+# Interface identical to Worm62: __init__(g_syn, g_gap, ...), step(clamp, I_extra), _V(), idx/neurons/N/t.
 import numpy as np
 from pathlib import Path
 from scipy.sparse import csr_matrix
@@ -29,14 +29,14 @@ EQ_CACHE = HERE.parent / "data" / "eq_states.json"
 _RMD_LAYOUT = {"VA", "VB", "VD", "DA", "DB", "AVA", "RMD"}
 _GATES = {"AWC": GATES_AWC, "RMD": GATES_RMD}
 _IDX = {ct: {n: i + 1 for i, n in enumerate(g)} for ct, g in _GATES.items()}
-# rhs 用到的全部参数键
+# all parameter keys used by rhs
 _PKEYS = ("gshal", "gshak", "gkir", "gkvs1", "gkqt3", "gegl2", "gegl36",
           "gcca1", "gunc2", "gegl19", "gbk", "gslo1", "gbk2", "gslo2", "gsk",
           "gleak", "ELEAK", "gnca", "vol", "C")
 
 
 def _rhs_merged(t, Y, Pv, layout, Iext):
-    """与 anchored_engine_v55_batch.rhs_batch 逐项相同; Pv 为按行参数 (n,) 数组。"""
+    """Identical term-by-term to anchored_engine_v55_batch.rhs_batch; Pv is a per-row parameter (n,) array."""
     IX = _IDX[layout]
     v = Y[:, 0]
     dY = np.zeros_like(Y)
@@ -151,7 +151,7 @@ def _rhs_merged(t, Y, Pv, layout, Iext):
     I_egl19 = Pv["gegl19"] * m * h * (v - ECA)
     alpha_e = minf_e / tm_e; beta_e = 1.0 / tm_e - alpha_e
 
-    # ---- Ca 纳米域 + SLO1/SLO2 复合体 ----
+    # ---- Ca nanodomain + SLO1/SLO2 complex ----
     r_, d_, F_, kb_, b_, gsc_ = 13e-9, 250e-12, 96485.0, 500e6, 30e-6, 40e-12
     cao = ((np.abs(gsc_ * (v - ECA) * 1e-3) / (8 * np.pi * r_ * d_ * F_))
            * np.exp(-r_ / np.sqrt(d_ / (kb_ * b_))) * 1e6 * 1e-3) + 0.05
@@ -187,7 +187,7 @@ def _rhs_merged(t, Y, Pv, layout, Iext):
     dY[:, D("mslo2")] = (minf_s2 - S("mslo2")) / tm_s2
     I_slo2 = Pv["gslo2"] * S("mslo2") * S("h_unc2") * (v - EK)
 
-    # ---- 胞内钙（微域）+ KCNL ----
+    # ---- Intracellular calcium (microdomain) + KCNL ----
     I_ca = I_unc2 + I_egl19 + I_cca1
     alpha_ca = 1 / (2 * Pv["vol"] * 96.485)
     ca = S("ca")
@@ -209,17 +209,17 @@ def _rhs_merged(t, Y, Pv, layout, Iext):
 class Worm62Fast:
     def __init__(self, g_syn, g_gap, g_wl=None, tau_wl=None, syn_delay_ms=0.0,
                  g_inh_mult=5.0, vclip=None, netnpz=None):
-        # P1 实验裁决 (2026-10-21 常数锚定): g_inh_mult 属"有界估计"非实测常数。
-        #   NMJ 实测 E:I=1.6:1 (ACh 2.01nA / GABA 1.23nA, Liu 2009 PNAS PMC2705609)
-        #   严格适用于神经-肌肉接头, 已移交 muscle96 输入级锚定 (见 P7)。
-        #   本参数乘的是神经-神经抑制边——该突触类型线虫无实测(领域空白)。
-        #   全局外推 0.6 实验: 爬行崩溃 (v 0.017mm/s, f 0.111Hz, κ_amp 16.1),
-        #   证伪"NMJ 比值全局化"。5.0 保留为估计值, 禁止再包装成生理常数。
+        # P1 adjudication (2026-10-21 constant anchoring): g_inh_mult is a "bounded estimate", not a measured constant.
+        #   NMJ measured E:I=1.6:1 (ACh 2.01 nA / GABA 1.23 nA, Liu 2009 PNAS PMC2705609)
+        #   applies strictly to the neuromuscular junction and has been handed to the muscle96 input-stage anchoring (see P7).
+        #   This parameter multiplies neuron-neuron inhibitory edges — a synapse type with no worm measurement (field blank).
+        #   Global extrapolation to 0.6 experiment: crawling collapses (v 0.017 mm/s, f 0.111 Hz, κ_amp 16.1),
+        #   falsifying "NMJ-ratio globalisation". 5.0 is retained as an estimate and must not be repackaged as a physiological constant.
         self.G_SYN = g_syn; self.G_INH = g_inh_mult * g_syn; self.G_GAP = g_gap
         self.g_inh_mult = g_inh_mult
         self.vclip = vclip
         self.G_WL = g_syn if g_wl is None else g_wl
-        self.G_WL_INH = g_inh_mult * self.G_WL   # 与主抑制同源 (冻结配置 g_wl=0, 此项零行为影响)
+        self.G_WL_INH = g_inh_mult * self.G_WL   # same source as the main inhibition (frozen config g_wl=0, zero behavioural impact)
         self.TAU_WL = TAU_WL if tau_wl is None else tau_wl
         z = np.load(netnpz if netnpz is not None else NET_NPZ, allow_pickle=False)
         self.neurons = [str(x) for x in z["neurons"]]
@@ -230,7 +230,7 @@ class Worm62Fast:
         import json as _json
         with open(EQ_CACHE, encoding='utf-8') as _fh:
             eq = {k: np.asarray(v, dtype=float) for k, v in _json.load(_fh).items()}
-        # 合并组: (layout, Pv, Y, rows_global)
+        # merged groups: (layout, Pv, Y, rows_global)
         self.groups = []
         self._owner = {}
         for lay in ("AWC", "RMD"):
@@ -255,7 +255,7 @@ class Worm62Fast:
             self.groups.append([lay, Pv, Y, np.array(rows_lay, dtype=int)])
             for r_local, r_global in enumerate(rows_lay):
                 self._owner[r_global] = (gi, r_local)
-        # 稀疏突触矩阵
+        # sparse synaptic matrices
         chem = z["chem"]; sign = z["sign"]; gap = z["gap"]
         ex = sign > 0
         N = self.N
@@ -263,10 +263,10 @@ class Worm62Fast:
                                 (chem[ex, 1].astype(int), chem[ex, 0].astype(int))), shape=(N, N))
         self.M_in = csr_matrix((self.G_INH * chem[~ex, 2],
                                 (chem[~ex, 1].astype(int), chem[~ex, 0].astype(int))), shape=(N, N))
-        # W54 (2026-10-23): A-MN(VA/DA)->B-MN(VB/DB) 兴奋性化学串扰边集拆分
-        # Kato et al. 2015 Cell 163:656 亚环路互抑 analog: 倒退态前进模块应被抑制;
-        # 解剖审计: VA->VB w=5.508 把 VA 锁入前进程序 (DA->DB 仅1.65 -> DA自由有波,
-        # 相位梯度实测 DA 0.31rad/节=λ20节 vs VA 0.02=同步); set_abx 供逐块换档
+        # W54 (2026-10-23): split of the A-MN(VA/DA)->B-MN(VB/DB) excitatory chemical crosstalk edge set
+        # Kato et al. 2015 Cell 163:656 subcircuit mutual-inhibition analog: in the backward state the forward module should be suppressed;
+        # anatomical audit: VA->VB w=5.508 locks VA into the forward program (DA->DB only 1.65 -> DA is free and carries a wave,
+        # measured phase gradient DA 0.31 rad/seg = λ20 segs vs VA 0.02 = synchronous); set_abx enables block-wise gear shifting
         import re as _re
         _nm = [str(n) for n in self.neurons]
         def _cls(n, pfx):
@@ -286,15 +286,15 @@ class Worm62Fast:
                                   (wls[wl_ex].astype(int), wlp[wl_ex].astype(int))), shape=(N, N))
         self.M_wlin = csr_matrix((self.G_WL_INH * (-wlw[~wl_ex]),
                                   (wls[~wl_ex].astype(int), wlp[~wl_ex].astype(int))), shape=(N, N))
-        # 电突触 Laplacian: I_gap[a]+=g w(Va-Vb), I_gap[b]-=g w(Va-Vb)
+        # gap-junction Laplacian: I_gap[a]+=g w(Va-Vb), I_gap[b]-=g w(Va-Vb)
         a = gap[:, 0].astype(int); b = gap[:, 1].astype(int); w = self.G_GAP * gap[:, 2]
-        self.A_g = a; self.B_g = b; self.W_g = gap[:, 2]   # W33: 整流边集需要端点表 (纯属性挂载, 行为不变)
+        self.A_g = a; self.B_g = b; self.W_g = gap[:, 2]   # W33: rectification edge set needs the endpoint table (pure attribute mount, behaviour unchanged)
         rr = np.concatenate([a, a, b, b]); cc = np.concatenate([a, b, a, b])
         vv = np.concatenate([w, -w, -w, w])
         self.L_gap = csr_matrix((vv, (rr, cc)), shape=(N, N))
         self.gA = np.zeros(N); self.gI = np.zeros(N)
         self.gWA = np.zeros(N); self.gWI = np.zeros(N)
-        # 突触延迟环形缓冲 (同 v62)
+        # synaptic-delay ring buffer (same as v62)
         self.syn_delay_ms = float(syn_delay_ms)
         self._dsteps = int(round(self.syn_delay_ms / DT))
         if self._dsteps > 0:
@@ -307,14 +307,14 @@ class Worm62Fast:
         self.t = 0.0
 
     def set_abx(self, gain):
-        """W54: A->B 串扰增益换档 (gain=1.0 时 M_ex 复原=逐比特旧行为)"""
+        """W54: A->B crosstalk gain gear shift (gain=1.0 restores M_ex = bit-identical old behaviour)"""
         if gain != self._abx_gain:
             self._abx_gain = gain
             self.M_ex = self.M_ex_rest + gain * self.M_ex_ab
             self._refresh_mex()
 
     def _refresh_mex(self):
-        pass  # fast_circuit 直接读 self.M_ex; numba 子类覆写刷新 CSR 数组
+        pass  # fast_circuit reads self.M_ex directly; the numba subclass overrides this to refresh CSR arrays
 
     def _V(self):
         V = np.empty(self.N)

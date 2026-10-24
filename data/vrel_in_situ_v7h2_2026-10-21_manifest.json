@@ -2,7 +2,7 @@
   "name": "vrel_in_situ_v7h2_2026-10-21",
   "created": "2026-10-21",
   "version": "v4 (motor-scoped in-situ re-reference)",
-  "definition": "vrel[i] = mean_t V_in_situ[i] - 10mV, 仅运动层 7 类; 其余=v1 逐位",
+  "definition": "vrel[i] = mean_t V_in_situ[i] - 10mV, motor layer 7 classes only; the rest bit-identical to v1",
   "motor_classes": [
     "VA",
     "VB",
@@ -12,8 +12,8 @@
     "VD",
     "AS"
   ],
-  "provenance": "V(t) from v62cl_s0m96v87d_final.npz (v87 BASE: net=M5d_gaba26, ggap0.3, gabaegl36 0.6, smdprop -24/3:9, muscle96 P4, 纯爬行, t>=3s)",
-  "basis": "v1 旧网造表全网 s_rest=1.142 钉死 (设计 0.4); v3 全局重建网崩已登记; v4 限定运动层, 修 DD/VD 钳死 + VB->AIB 哑, 肌肉 sp 通路免疫",
+  "provenance": "V(t) from v62cl_s0m96v87d_final.npz (v87 BASE: net=M5d_gaba26, ggap0.3, gabaegl36 0.6, smdprop -24/3:9, muscle96 P4, pure crawl, t>=3s)",
+  "basis": "v1 table built from the old net, whole-net s_rest=1.142 pinned (design 0.4); v3 whole-net rebuild collapsed (on record); v4 restricted to the motor layer, fixing DD/VD clamping + silent VB->AIB, muscle sp pathway immune",
   "V_SCALE": 25.0,
   "VREL_OFF": -10.0,
   "window": "t>=3.0s of 10s",
@@ -492,5 +492,5 @@
   ],
   "basis_net": "net_pure323_M5d_gaba26.npz",
   "base_table": "vrel_in_situ_v6h2_2026-10-21.npy",
-  "note": "此前 provenance 字段为工具硬编码旧文案(v85e/ggap1.0), 2026-10-21 审计更正; 表数值不变"
+  "note": "The provenance field previously held tool-hardcoded legacy text (v85e/ggap1.0); corrected in the 2026-10-21 audit. Table values unchanged."
 }
