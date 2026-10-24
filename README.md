@@ -10,6 +10,14 @@ Every numerical constant in the running configuration is either a direct
 literature measurement or a bounded estimate declared as such in the
 manuscript (Tables 4–6). No parameter is trained.
 
+![Forward crawl assay — body, motor-neuron wave and curvature kymograph in closed loop](assets/demo_crawl.gif)
+
+*A 10 s forward crawl, simulated by the closed loop below. Top right: the body
+coloured by curvature; middle: ventral-cord motor-neuron activity propagating
+head → tail; bottom: curvature kymograph — the diagonal stripes **are** the
+travelling wave, emerging from the loop rather than being injected. Reproduce
+with assay 1 below and `figures/make_suite_movies_v3.py`.*
+
 ## What this is
 
 A closed-loop whole-animal simulation of *C. elegans*:
@@ -31,6 +39,36 @@ The champion stack is entirely original code (`rod2d_own.py`,
 `muscle96.py`); no third-party body layer is required for any result
 reported in the manuscript.
 
+## Architecture at a glance
+
+```
+        sensory neurons                command interneurons
+   ASH  ASE  ALM/PLM  AFD  PVD      AVA (backward)   AVB (forward)
+        │  chemical + gap-junction edges, EM-count weights  │
+        ▼                                                   ▼
+   ─────────────────────────────────────────────────────────────
+              motor neurons: A / B / D classes + SMD
+   ─────────────────────────────────────────────────────────────
+                           │  anatomical innervation table
+                           ▼
+              96 body-wall muscles (muscle96.py)
+                           │  graded contraction
+                           ▼
+        24-segment viscoelastic body (rod2d_own.py)
+                           │
+                           └──── proprioceptive feedback ────┐
+                 body curvature re-enters the motor neurons  │
+                 (Wen et al. 2012) ──────────────────────────┘
+
+        peptidergic / state layer (NLP-12→CKR-2, NLP-18→CKR-1,
+        dopamine → gap-junction modulation) rides on top and
+        re-tunes gains with behavioural state.
+```
+
+The wave, viewed from the neuron side — the same loop, same run:
+
+![Neural wave drives the body wave — B-class motor neurons and curvature kymograph](assets/demo_wave.gif)
+
 ## Layout
 
 ```
@@ -50,6 +88,7 @@ protocols/
   champion_base.txt        frozen base configuration (verbatim CLI arguments)
   chemotaxis_block.txt     chemotaxis assay overlay (verbatim CLI arguments)
 figures/                   figure and movie factories (read trajectories from runs/)
+assets/                    the demo GIFs shown above
 runs/                      trajectories land here when you run the assays
 ```
 
