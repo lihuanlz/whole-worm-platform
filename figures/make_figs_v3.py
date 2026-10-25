@@ -568,7 +568,7 @@ def fig6():
              color=C["accent"], lw=1.4, ls="--", label="NLP-12 release var (scaled)")
     ax.set_xlabel("time (s)"); ax.set_ylabel("mV", color=C["muscD"])
     ax2.set_ylabel("Ca / peptide (a.u.)", color=C["sens"])
-    ax.set_title("d  One cell, all channels + peptidergic layer", loc="left", fontweight="bold")
+    ax.set_title("d  One cell, fully observed: V, Ca$^{2+}$, peptide state", loc="left", fontweight="bold")
     l1, lb1 = ax.get_legend_handles_labels(); l2, lb2 = ax2.get_legend_handles_labels()
     ax.legend(l1 + l2, lb1 + lb2, fontsize=6.6, loc="upper center",
               bbox_to_anchor=(0.5, -0.16), ncol=3, frameon=False)
